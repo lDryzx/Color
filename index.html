@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColorMatch — Adivina el color del personaje</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0eeff;
+    --muted: #7e7a9a;
+    --accent: #7c6af7;
+    --accent2: #c084fc;
+    --success: #4ade80;
+    --warn: #facc15;
+    --danger: #f87171;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .logo {
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+
+  .score-item {
+    text-align: center;
+  }
+
+  .score-label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .score-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .main {
+    width: 100%;
+    max-width: 960px;
+    padding: 2rem 1rem;
+    flex: 1;
+  }
+
+  /* ── PANTALLA INICIO ── */
+  #screen-start {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  #screen-start h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  #screen-start p {
+    color: var(--muted);
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn:hover { opacity: 0.85; }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── PANTALLA JUEGO ── */
+  #screen-game { display: none; }
+
+  .round-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .round-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 0.3rem 1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .progress-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 99px;
+    margin: 0 1rem;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .game-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 680px) {
+    .game-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+  }
+
+  .panel-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  /* Imagen del personaje */
+  .character-wrap {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background:
+      repeating-conic-gradient(#2a2a38 0% 25%, #1f1f2c 0% 50%)
+      0 0 / 20px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .character-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Selector de color */
+  .color-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .preview-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .color-preview-box {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .hex-display {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-size: 1.2rem;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  .sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .slider-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    width: 20px;
+    color: var(--muted);
+  }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 99px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"].r-slider { background: linear-gradient(to right, #111, #f00); }
+  input[type="range"].g-slider { background: linear-gradient(to right, #111, #0f0); }
+  input[type="range"].b-slider { background: linear-gradient(to right, #111, #00f); }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #555;
+    cursor: pointer;
+  }
+
+  .slider-val {
+    font-size: 0.75rem;
+    color: var(--muted);
+    width: 28px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Wheel / hue strip */
+  .hue-strip-wrap { display: flex; align-items: center; gap: 0.75rem; }
+  .hue-label { font-size: 0.75rem; color: var(--muted); width: 20px; }
+  #hue-slider {
+    flex: 1;
+    height: 10px;
+    border-radius: 99px;
+    background: linear-gradient(to right,
+      hsl(0,100%,50%), hsl(30,100%,50%), hsl(60,100%,50%),
+      hsl(90,100%,50%), hsl(120,100%,50%), hsl(150,100%,50%),
+      hsl(180,100%,50%), hsl(210,100%,50%), hsl(240,100%,50%),
+      hsl(270,100%,50%), hsl(300,100%,50%), hsl(330,100%,50%), hsl(360,100%,50%));
+    -webkit-appearance: none;
+    outline: none;
+    cursor: pointer;
+  }
+
+  #hue-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #333;
+    cursor: pointer;
+  }
+
+  /* Botón enviar */
+  .submit-row {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn-submit {
+    flex: 1;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn-submit:hover { opacity: 0.88; }
+  .btn-submit:active { transform: scale(0.97); }
+
+  /* ── RESULTADO INLINE ── */
+  .result-reveal {
+    display: none;
+    margin-top: 1.25rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .comparison-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .color-block-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+
+  .color-block {
+    width: 100%;
+    height: 80px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .color-block-label { font-size: 0.7rem; color: var(--muted); }
+  .color-block-hex { font-family: monospace; font-size: 0.9rem; }
+
+  .vs-divider { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+
+  .score-reveal {
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .score-reveal .big-pct {
+    font-size: 2.5rem;
+    font-weight: 800;
+  }
+
+  .score-reveal .verdict {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+  }
+
+  .delta-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+
+  .delta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .delta-label { width: 14px; color: var(--muted); font-weight: 700; }
+
+  .delta-track {
+    flex: 1;
+    height: 6px;
+    background: var(--surface);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .delta-fill {
+    height: 100%;
+    border-radius: 99px;
+  }
+
+  .delta-fill.good { background: var(--success); }
+  .delta-fill.ok   { background: var(--warn); }
+  .delta-fill.bad  { background: var(--danger); }
+
+  .delta-num { width: 28px; text-align: right; color: var(--muted); }
+
+  .btn-next {
+    width: 100%;
+    margin-top: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-next:hover { background: var(--surface2); }
+
+  /* ── PANTALLA FINAL ── */
+  #screen-end {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .final-circle {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 4px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .final-pct { font-size: 2.2rem; font-weight: 800; }
+  .final-label { font-size: 0.7rem; color: var(--muted); }
+
+  .round-results-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 500px;
+  }
+
+  .rr-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 1rem;
+  }
+
+  .rr-swatch-pair { display: flex; gap: 4px; }
+  .rr-swatch { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border); }
+  .rr-name { flex: 1; font-size: 0.85rem; color: var(--muted); }
+  .rr-pct { font-size: 0.85rem; font-weight: 700; }
+
+  /* ── ERROR STATE ── */
+  #screen-error {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  #screen-error h2 { color: var(--danger); }
+  #screen-error pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    color: var(--muted);
+    max-width: 480px;
+    white-space: pre-wrap;
+    text-align: left;
+  }
+
+  .tag-green { color: var(--success); }
+  .tag-warn  { color: var(--warn); }
+  .tag-red   { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">🎨 ColorMatch</span>
+  <div class="scoreboard">
+    <div class="score-item">
+      <div class="score-label">Ronda</div>
+      <div class="score-value" id="hdr-round">—</div>
+    </div>
+    <div class="score-item">
+      <div class="score-label">Promedio</div>
+      <div class="score-value" id="hdr-avg">—</div>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- INICIO -->
+  <div id="screen-start">
+    <h1>¿Podés adivinar<br>el color exacto?</h1>
+    <p>Se te mostrará un personaje con partes transparentes. Tu misión: elegir el color correcto usando los sliders. Cuanto más cerca, más puntos.</p>
+    <button class="btn" id="btn-start">Comenzar juego</button>
+    <p id="levels-found" style="font-size:0.8rem;color:var(--muted);">Buscando personajes...</p>
+  </div>
+
+  <!-- JUEGO -->
+  <div id="screen-game">
+    <div class="round-info">
+      <span class="round-badge" id="round-label">Ronda 1 de ?</span>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <span style="font-size:0.8rem;color:var(--muted)" id="round-score-hdr">0 pts</span>
+    </div>
+
+    <div class="game-grid">
+      <!-- Columna izquierda: personaje -->
+      <div>
+        <div class="panel">
+          <div class="panel-title">Personaje</div>
+          <div class="character-wrap">
+            <img id="char-img" src="" alt="personaje" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: selector -->
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div class="panel color-selector">
+          <div class="panel-title">Elegí el color</div>
+
+          <div class="preview-row">
+            <div class="color-preview-box" id="preview-box"></div>
+            <div class="hex-display" id="hex-display">#808080</div>
+          </div>
+
+          <div class="hue-strip-wrap">
+            <span class="hue-label">H</span>
+            <input type="range" id="hue-slider" min="0" max="360" value="0">
+          </div>
+
+          <div class="sliders">
+            <div class="slider-row">
+              <span class="slider-label">R</span>
+              <input type="range" class="r-slider" id="r-slider" min="0" max="255" value="128">
+              <span class="slider-val" id="r-val">128</span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label">G</span>
+              <input type="range" class="g-slider" id="g-slider" min="0" max="255" value="128">
+              <span class="slider-val" id="g-val">128</span>
+            </div>
+            <div class="slider-row">
+              <span class="slider-label">B</span>
+              <input type="range" class="b-slider" id="b-slider" min="0" max="255" value="128">
+              <span class="slider-val" id="b-val">128</span>
+            </div>
+          </div>
+
+          <div class="submit-row">
+            <button class="btn-submit" id="btn-submit">Enviar color ↗</button>
+          </div>
+        </div>
+
+        <!-- Resultado inline -->
+        <div class="result-reveal" id="result-reveal">
+          <div class="panel-title">Resultado</div>
+
+          <div class="comparison-row">
+            <div class="color-block-wrap">
+              <div class="color-block" id="res-player-block"></div>
+              <div class="color-block-label">Tu color</div>
+              <div class="color-block-hex" id="res-player-hex"></div>
+            </div>
+            <div class="vs-divider">VS</div>
+            <div class="color-block-wrap">
+              <div class="color-block" id="res-original-block"></div>
+              <div class="color-block-label">Original</div>
+              <div class="color-block-hex" id="res-original-hex"></div>
+            </div>
+          </div>
+
+          <div class="delta-bars" id="delta-bars"></div>
+
+          <div class="score-reveal">
+            <div class="big-pct" id="res-pct">—</div>
+            <div class="verdict" id="res-verdict"></div>
+          </div>
+
+          <button class="btn-next" id="btn-next">Siguiente personaje →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div id="screen-end">
+    <div class="final-circle">
+      <span class="final-pct" id="final-pct">0%</span>
+      <span class="final-label">precisión</span>
+    </div>
+    <div>
+      <h2 id="final-title" style="font-size:1.6rem;margin-bottom:0.5rem;"></h2>
+      <p id="final-sub" style="color:var(--muted);font-size:0.9rem;"></p>
+    </div>
+    <div class="round-results-grid" id="round-results-grid"></div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+      <button class="btn" id="btn-retry">Jugar de nuevo</button>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="screen-error">
+    <h2>No se encontraron personajes</h2>
+    <p style="color:var(--muted);max-width:440px;line-height:1.6;">
+      El juego busca carpetas numeradas <code>1/</code>, <code>2/</code>, <code>3/</code>… en la misma ubicación que este HTML.<br>
+      Cada carpeta debe contener:
+    </p>
+    <pre>1/
+  character.png   ← imagen PNG con transparencia
+  color.txt       ← código hex del color, ej: #FF5A3C
+
+2/
+  character.png
+  color.txt
+...</pre>
+    <p style="color:var(--muted);font-size:0.85rem;" id="err-detail"></p>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+(function(){
+  /* ── ESTADO ── */
+  const state = {
+    levels: [],
+    order: [],
+    current: 0,
+    scores: [],
+    playerColors: [],
+    originalColors: [],
+    submitted: false,
+  };
+
+  /* ── UTIL ── */
+  function hexToRgb(hex){
+    const h = hex.replace('#','');
+    const full = h.length === 3
+      ? h.split('').map(c=>c+c).join('')
+      : h;
+    const n = parseInt(full, 16);
+    return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
+  }
+
+  function rgbToHex(r,g,b){
+    return '#' + [r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+
+  function hslToRgb(h,s,l){
+    s/=100; l/=100;
+    const k=n=>(n+h/30)%12;
+    const a=s*Math.min(l,1-l);
+    const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+    return { r:Math.round(f(0)*255), g:Math.round(f(8)*255), b:Math.round(f(4)*255) };
+  }
+
+  function colorDiff(c1, c2){
+    return {
+      r: Math.abs(c1.r - c2.r),
+      g: Math.abs(c1.g - c2.g),
+      b: Math.abs(c1.b - c2.b),
+    };
+  }
+
+  function diffToScore(diff){
+    const max = Math.sqrt(255*255*3);
+    const dist = Math.sqrt(diff.r**2 + diff.g**2 + diff.b**2);
+    return Math.max(0, Math.round((1 - dist/max)*100));
+  }
+
+  function verdict(pct){
+    if (pct >= 95) return { txt: '¡Perfecto! 🎯', cls: 'tag-green' };
+    if (pct >= 80) return { txt: '¡Muy cerca! 🔥', cls: 'tag-green' };
+    if (pct >= 60) return { txt: 'No está mal 👀', cls: 'tag-warn' };
+    if (pct >= 40) return { txt: 'Sigue practicando 🎨', cls: 'tag-warn' };
+    return { txt: 'Muy diferente 😅', cls: 'tag-red' };
+  }
+
+  function shuffle(arr){
+    const a = [...arr];
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+
+  /* ── DETECCIÓN DE NIVELES ── */
+  async function detectLevels(){
+    const found = [];
+    let i = 1;
+    while(true){
+      try {
+        const res = await fetch(`${i}/color.txt`, { method:'HEAD' });
+        if (!res.ok) break;
+        found.push(i);
+        i++;
+        if(i > 999) break;
+      } catch(e){ break; }
+    }
+    return found;
+  }
+
+  async function loadLevelData(num){
+    const res = await fetch(`${num}/color.txt`);
+    let hex = (await res.text()).trim();
+    if(!hex.startsWith('#')) hex = '#'+hex;
+    hex = hex.toUpperCase().slice(0,7);
+    return { num, hex, img: `${num}/character.png` };
+  }
+
+  /* ── UI ── */
+  const screens = {
+    start: document.getElementById('screen-start'),
+    game:  document.getElementById('screen-game'),
+    end:   document.getElementById('screen-end'),
+    error: document.getElementById('screen-error'),
+  };
+
+  function show(name){
+    Object.values(screens).forEach(s=>s.style.display='none');
+    const el = screens[name];
+    el.style.display = (name==='end'||name==='error') ? 'flex' : 'block';
+  }
+
+  /* sliders */
+  const rS = document.getElementById('r-slider');
+  const gS = document.getElementById('g-slider');
+  const bS = document.getElementById('b-slider');
+  const hS = document.getElementById('hue-slider');
+  const rV = document.getElementById('r-val');
+  const gV = document.getElementById('g-val');
+  const bV = document.getElementById('b-val');
+  const previewBox = document.getElementById('preview-box');
+  const hexDisplay = document.getElementById('hex-display');
+
+  let _updatingFromHue = false;
+
+  function updatePreview(){
+    const r=+rS.value, g=+gS.value, b=+bS.value;
+    const hex = rgbToHex(r,g,b);
+    previewBox.style.background = hex;
+    hexDisplay.textContent = hex;
+    rV.textContent = r;
+    gV.textContent = g;
+    bV.textContent = b;
+  }
+
+  [rS,gS,bS].forEach(s=>s.addEventListener('input',()=>{
+    _updatingFromHue = false;
+    updatePreview();
+  }));
+
+  hS.addEventListener('input',()=>{
+    const hue = +hS.value;
+    const rgb = hslToRgb(hue, 80, 55);
+    _updatingFromHue = true;
+    rS.value = rgb.r; gS.value = rgb.g; bS.value = rgb.b;
+    updatePreview();
+  });
+
+  updatePreview();
+
+  /* ── INICIO ── */
+  async function init(){
+    const levelsFound = await detectLevels();
+    const lbl = document.getElementById('levels-found');
+    if(levelsFound.length === 0){
+      lbl.textContent = 'No se encontraron carpetas de personajes.';
+      document.getElementById('btn-start').disabled = true;
+      document.getElementById('btn-start').style.opacity = '0.4';
+      show('error');
+      document.getElementById('err-detail').textContent =
+        'Asegurate de abrir el juego desde un servidor local o GitHub Pages, no desde el sistema de archivos directamente (file://).';
+      return;
+    }
+    lbl.textContent = `${levelsFound.length} personaje${levelsFound.length!==1?'s':''} encontrado${levelsFound.length!==1?'s':''}`;
+    state.levels = levelsFound;
+    document.getElementById('btn-start').addEventListener('click', startGame);
+  }
+
+  async function startGame(){
+    const data = [];
+    for(const n of state.levels){
+      try { data.push(await loadLevelData(n)); } catch(e){}
+    }
+    if(data.length === 0){ show('error'); return; }
+    state.order = shuffle(data);
+    state.current = 0;
+    state.scores = [];
+    state.playerColors = [];
+    state.originalColors = [];
+    show('game');
+    loadRound();
+  }
+
+  function loadRound(){
+    const total = state.order.length;
+    const idx = state.current;
+    const level = state.order[idx];
+
+    state.submitted = false;
+    document.getElementById('result-reveal').style.display = 'none';
+    document.getElementById('btn-submit').disabled = false;
+
+    document.getElementById('round-label').textContent = `Ronda ${idx+1} de ${total}`;
+    document.getElementById('progress-fill').style.width = `${(idx/total)*100}%`;
+    document.getElementById('round-score-hdr').textContent =
+      state.scores.length ? Math.round(state.scores.reduce((a,b)=>a+b,0)/state.scores.length)+'%' : '—';
+    document.getElementById('hdr-round').textContent = `${idx+1}/${total}`;
+    document.getElementById('hdr-avg').textContent =
+      state.scores.length ? Math.round(state.scores.reduce((a,b)=>a+b,0)/state.scores.length)+'%' : '—';
+
+    /* resetear sliders a gris medio */
+    rS.value = 128; gS.value = 128; bS.value = 128; hS.value = 0;
+    updatePreview();
+
+    const img = document.getElementById('char-img');
+    img.src = level.img;
+    img.alt = `Personaje ${level.num}`;
+  }
+
+  /* ── ENVIAR COLOR ── */
+  document.getElementById('btn-submit').addEventListener('click', ()=>{
+    if(state.submitted) return;
+    state.submitted = true;
+    document.getElementById('btn-submit').disabled = true;
+
+    const level = state.order[state.current];
+    const playerHex = rgbToHex(+rS.value, +gS.value, +bS.value);
+    const origHex   = level.hex;
+
+    state.playerColors.push(playerHex);
+    state.originalColors.push(origHex);
+
+    const pRgb = hexToRgb(playerHex);
+    const oRgb = hexToRgb(origHex);
+    const diff = colorDiff(pRgb, oRgb);
+    const pct  = diffToScore(diff);
+    state.scores.push(pct);
+
+    /* mostrar resultado */
+    const rev = document.getElementById('result-reveal');
+    rev.style.display = 'block';
+
+    document.getElementById('res-player-block').style.background = playerHex;
+    document.getElementById('res-original-block').style.background = origHex;
+    document.getElementById('res-player-hex').textContent = playerHex;
+    document.getElementById('res-original-hex').textContent = origHex;
+
+    const pctEl = document.getElementById('res-pct');
+    pctEl.textContent = pct + '%';
+    const v = verdict(pct);
+    pctEl.className = 'big-pct ' + v.cls;
+    document.getElementById('res-verdict').textContent = v.txt;
+
+    /* barras de delta por canal */
+    const dbEl = document.getElementById('delta-bars');
+    dbEl.innerHTML = '';
+    [['R', diff.r], ['G', diff.g], ['B', diff.b]].forEach(([lbl, d])=>{
+      const cls = d <= 20 ? 'good' : d <= 80 ? 'ok' : 'bad';
+      dbEl.innerHTML += `
+        <div class="delta-row">
+          <span class="delta-label">${lbl}</span>
+          <div class="delta-track">
+            <div class="delta-fill ${cls}" style="width:${Math.round(d/255*100)}%"></div>
+          </div>
+          <span class="delta-num">${d}</span>
+        </div>`;
+    });
+
+    /* actualizar header */
+    const avg = Math.round(state.scores.reduce((a,b)=>a+b,0)/state.scores.length);
+    document.getElementById('hdr-avg').textContent = avg+'%';
+    document.getElementById('round-score-hdr').textContent = avg+'%';
+  });
+
+  /* ── SIGUIENTE ── */
+  document.getElementById('btn-next').addEventListener('click', ()=>{
+    state.current++;
+    if(state.current >= state.order.length){
+      showEnd();
+    } else {
+      loadRound();
+    }
+  });
+
+  /* ── PANTALLA FINAL ── */
+  function showEnd(){
+    show('end');
+    const avg = Math.round(state.scores.reduce((a,b)=>a+b,0)/state.scores.length);
+    document.getElementById('final-pct').textContent = avg+'%';
+    document.getElementById('progress-fill').style.width = '100%';
+
+    const fv = verdict(avg);
+    document.getElementById('final-title').textContent = avg>=80?'¡Buen ojo!' : avg>=50?'Buen intento':'Seguí entrenando';
+    document.getElementById('final-sub').textContent = `Promedio de precisión en ${state.scores.length} ronda${state.scores.length!==1?'s':''}`;
+
+    const grid = document.getElementById('round-results-grid');
+    grid.innerHTML = '';
+    state.order.forEach((lvl,i)=>{
+      const p = state.scores[i];
+      const v2 = verdict(p);
+      grid.innerHTML += `
+        <div class="rr-row">
+          <div class="rr-swatch-pair">
+            <div class="rr-swatch" style="background:${state.playerColors[i]}"></div>
+            <div class="rr-swatch" style="background:${state.originalColors[i]}"></div>
+          </div>
+          <span class="rr-name">Personaje ${lvl.num}</span>
+          <span class="rr-pct ${v2.cls}">${p}%</span>
+        </div>`;
+    });
+  }
+
+  /* ── REINICIAR ── */
+  document.getElementById('btn-retry').addEventListener('click', ()=>{
+    show('start');
+  });
+  document.getElementById('btn-start').addEventListener('click', ()=>{});
+
+  /* ── ARRANCAR ── */
+  show('start');
+  init();
+})();
+</script>
+</body>
+</html>
