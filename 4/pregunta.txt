@@ -1,0 +1,5 @@
+# Como se llama el archivo de ese Sprite de Sans? 
+## Sans
+## spr_sans
+## spr_sans_face
+### spr_sans_u
